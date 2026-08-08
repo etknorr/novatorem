@@ -163,6 +163,17 @@ def makeSVG(data, background_color, border_color):
     return render_template(getTemplate(), **dataDict)
 
 
+# An empty SVG renders as nothing; a 500 renders as a broken-image icon.
+EMPTY_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0"/>'
+
+
+def emptyResponse():
+    resp = Response(EMPTY_SVG, mimetype="image/svg+xml")
+    # cache the empty card, so a dead token doesn't retry on every page view
+    resp.headers["Cache-Control"] = "s-maxage=600"
+    return resp
+
+
 @app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
 @app.route('/with_parameters')
@@ -170,12 +181,16 @@ def catch_all(path):
     background_color = request.args.get('background_color') or "181414"
     border_color = request.args.get('border_color') or "181414"
 
+    # both fetches share the refresh token, so a dead one fails every branch
     try:
-        data = get(NOW_PLAYING_URL)
-    except Exception:
-        data = get(RECENTLY_PLAYING_URL)
-
-    svg = makeSVG(data, background_color, border_color)
+        try:
+            data = get(NOW_PLAYING_URL)
+        except Exception:
+            data = get(RECENTLY_PLAYING_URL)
+        svg = makeSVG(data, background_color, border_color)
+    except Exception as e:
+        print(f"Spotify card unavailable, serving nothing: {e}")
+        return emptyResponse()
 
     resp = Response(svg, mimetype="image/svg+xml")
     resp.headers["Cache-Control"] = "s-maxage=1"
