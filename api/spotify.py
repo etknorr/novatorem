@@ -176,7 +176,7 @@ def emptyResponse():
 
 @app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
-@app.route('/with_parameters')
+@app.route('/with_parameters', defaults={"path": ""})
 def catch_all(path):
     background_color = request.args.get('background_color') or "181414"
     border_color = request.args.get('border_color') or "181414"
